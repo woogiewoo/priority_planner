@@ -117,27 +117,37 @@
             bottleBottom, bottleLeft, bottleRight
         ]);
 
-        // 모래 입자 생성 함수
+        // 모래 입자 생성 함수 수정 (사각형으로 변경)
         function createSandParticle() {
-            const x = window.innerWidth/2 + Common.random(-20, 20);
+            const x = window.innerWidth / 2 + Common.random(-20, 20);
             const y = 0;
-            return Bodies.circle(x, y, 2, {
-                restitution: 0.3,     // 탄성 감소
-                friction: 0.5,        // 마찰력 증가
-                density: 0.1,         // 밀도 감소
+            return Bodies.rectangle(x, y, 4, 4, { // 사각형으로 변경
+                restitution: 0.3,
+                friction: 0.5,
+                density: 0.1,
                 render: {
                     fillStyle: '#f4a460'
                 }
             });
         }
 
-        // 주기적으로 모래 입자 생성
+        // 주기적으로 모래 입자 생성 (사각형으로 변경)
         setInterval(function() {
-            for(let i = 0; i < 3; i++) {
+            for (let i = 0; i < 3; i++) {
                 const sand = createSandParticle();
                 World.add(engine.world, sand);
             }
         }, 100);
+
+        // 모래가 떨어지는 애니메이션 추가
+        function dropSand() {
+            const sand = createSandParticle();
+            Matter.Body.setPosition(sand, { x: window.innerWidth / 2 + Common.random(-20, 20), y: 0 });
+            World.add(engine.world, sand);
+        }
+
+        // 주기적으로 모래 떨어뜨리기
+        setInterval(dropSand, 300); // 300ms마다 떨어뜨리기
 
         // 전역 변수로 선택된 크기 추가
         let selectedSize = 10;
