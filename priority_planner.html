@@ -3,22 +3,31 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>공 떨어뜨리기 게임</title>
+    <title>우선순위 플래너</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
-    <style>
-        body {
-            margin: 0;
-            padding: 0;
-            overflow: hidden;
-            background: #f0f0f0;
-        }
-        canvas {
-            width: 100%;
-            height: 100vh;
-        }
-    </style>
+    <link rel="stylesheet" href="style.css">
+
+
+    
 </head>
 <body>
+    <div id="planner-controls">
+        <div id="task-input">
+            <input type="text" id="task-text" placeholder="할 일을 입력하세요">
+            <select id="priority-select">
+                <option value="1">1순위</option>
+                <option value="2">2순위</option>
+                <option value="3">3순위</option>
+                <option value="4">4순위</option>
+                <option value="5">5순위</option>
+            </select>
+            <button id="add-task">추가</button>
+        </div>
+        <div id="task-list">
+            <!-- 태스크들이 여기에 추가됨 -->
+        </div>
+    </div>
+
     <script>
         // Matter.js 모듈 설정
         const Engine = Matter.Engine,
@@ -130,9 +139,27 @@
             }
         }, 100);
 
-        // 기존 클릭 이벤트는 유지 (더 큰 공 생성)
+        // 전역 변수로 선택된 크기 추가
+        let selectedSize = 10;
+
+        // 버튼 클릭 이벤트 처리
+        document.querySelectorAll('.size-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                // 모든 버튼에서 active 클래스 제거
+                document.querySelectorAll('.size-btn').forEach(b => b.classList.remove('active'));
+                // 클릭된 버튼에 active 클래스 추가
+                this.classList.add('active');
+                // 선택된 크기 업데이트
+                selectedSize = parseInt(this.dataset.size);
+            });
+        });
+
+        // 기존 클릭 이벤트 수정
         document.addEventListener('click', function(event) {
-            const ball = Bodies.circle(event.clientX, event.clientY, 20, {
+            // size-controls 영역 클릭시 공 생성하지 않음
+            if (event.target.closest('#size-controls')) return;
+
+            const ball = Bodies.circle(event.clientX, event.clientY, selectedSize, {
                 restitution: 0.8,
                 render: {
                     fillStyle: '#' + Math.floor(Math.random()*16777215).toString(16)
@@ -159,6 +186,92 @@
             Matter.Body.setPosition(bottleLeft, { x: window.innerWidth/2 - bottleWidth/2 + wallThickness/2, y: window.innerHeight - bottleHeight/2 });
             Matter.Body.setPosition(bottleRight, { x: window.innerWidth/2 + bottleWidth/2 - wallThickness/2, y: window.innerHeight - bottleHeight/2 });
         });
+
+        // 태스크 관리를 위한 코드 추가
+        const taskInput = document.getElementById('task-text');
+        const prioritySelect = document.getElementById('priority-select');
+        const addTaskBtn = document.getElementById('add-task');
+        const taskList = document.getElementById('task-list');
+
+        let tasks = [];
+
+        // 태스크 추가
+        addTaskBtn.addEventListener('click', function() {
+            const text = taskInput.value.trim();
+            const priority = parseInt(prioritySelect.value);
+            
+            if(text) {
+                const task = {
+                    id: Date.now(),
+                    text: text,
+                    priority: priority,
+                    completed: false
+                };
+                
+                tasks.push(task);
+                renderTasks();
+                taskInput.value = '';
+            }
+        });
+
+        // 태스크 렌더링
+        function renderTasks() {
+            // 우선순위별로 정렬
+            tasks.sort((a, b) => a.priority - b.priority);
+            
+            taskList.innerHTML = '';
+            tasks.forEach(task => {
+                const taskElement = document.createElement('div');
+                taskElement.className = 'task-item';
+                taskElement.innerHTML = `
+                    <span class="priority-badge priority-${task.priority}">${task.priority}순위</span>
+                    <span class="task-text">${task.text}</span>
+                    <button class="complete-btn" data-id="${task.id}">완료</button>
+                `;
+                taskList.appendChild(taskElement);
+            });
+
+            // 완료 버튼에 이벤트 리스너 추가
+            document.querySelectorAll('.complete-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const taskId = parseInt(this.dataset.id);
+                    const task = tasks.find(t => t.id === taskId);
+                    
+                    if(task) {
+                        // 해당 크기의 공 생성
+                        const ballSize = (6 - task.priority) * 10; // 1순위는 50, 5순위는 10
+                        const ball = Bodies.circle(
+                            window.innerWidth/2,
+                            50,
+                            ballSize,
+                            {
+                                restitution: 0.8,
+                                render: {
+                                    fillStyle: getColorByPriority(task.priority)
+                                }
+                            }
+                        );
+                        World.add(engine.world, ball);
+
+                        // 태스크 목록에서 제거
+                        tasks = tasks.filter(t => t.id !== taskId);
+                        renderTasks();
+                    }
+                });
+            });
+        }
+
+        // 우선순위별 색상 지정
+        function getColorByPriority(priority) {
+            const colors = {
+                1: '#ff4444', // 빨강 (highest)
+                2: '#ff8800', // 주황
+                3: '#ffcc00', // 노랑
+                4: '#00cc88', // 초록
+                5: '#0099ff'  // 파랑 (lowest)
+            };
+            return colors[priority];
+        }
     </script>
 </body>
 </html>
