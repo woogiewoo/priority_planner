@@ -6,25 +6,152 @@
     <title>우선순위 플래너</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
     <link rel="stylesheet" href="style.2.css">
+    <style>
+        .task-label {
+            position: absolute;
+            transform: translate(-50%, -50%);
+            color: black;
+            font-family: Arial, sans-serif;
+            pointer-events: auto;
+            z-index: 1000;
+            text-align: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: all 0.3s ease;
+        }
 
+        .task-label:hover {
+            background: rgba(255, 255, 255, 0.9);
+            white-space: normal;
+            max-width: none !important;
+            overflow: visible;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        
+        /* 우선순위 범례 스타일 추가 */
+        .priority-legend {
+            margin-top: 20px;
+            text-align: center;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .priority-legend h3 {
+            margin-bottom: 20px;
+            color: #333;
+        }
+        
+        .legend-items {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 30px;
+        }
+        
+        .legend-item {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .legend-ball {
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 14px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            border: none;
+            outline: none;
+        }
 
-    
+        .legend-ball:hover {
+            transform: scale(1.1);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+
+        .legend-ball:active {
+            transform: scale(0.95);
+        }
+        
+        .priority-1 {
+            background-color: #ff4444;
+            width: 35px;
+            height: 35px;
+            font-size: 16px;
+        }
+        
+        .priority-2 {
+            background-color: #ff8800;
+            width: 32px;
+            height: 32px;
+            font-size: 15px;
+        }
+        
+        .priority-3 {
+            background-color: #ffcc00;
+            width: 28px;
+            height: 28px;
+            font-size: 14px;
+        }
+        
+        .priority-4 {
+            background-color: #00cc88;
+            width: 24px;
+            height: 24px;
+            font-size: 13px;
+        }
+        
+        .priority-5 {
+            background-color: #0099ff;
+            width: 20px;
+            height: 20px;
+            font-size: 12px;
+        }
+
+        .legend-ball.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+    </style>
 </head>
 <body>
     <div id="planner-controls">
-        <div id="task-input">
+        <div class="task-input-box">
             <input type="text" id="task-text" placeholder="할 일을 입력하세요">
-            <select id="priority-select">
-                <option value="1">1순위</option>
-                <option value="2">2순위</option>
-                <option value="3">3순위</option>
-                <option value="4">4순위</option>
-                <option value="5">5순위</option>
-            </select>
-            <button id="add-task">추가</button>
         </div>
-        <div id="task-list">
-            <!-- 태스크들이 여기에 추가됨 -->
+        
+        <!-- 우선순위 범례 추가 -->
+        <div class="priority-legend">
+            <h3>우선순위 선택</h3>
+            <div class="legend-items">
+                <div class="legend-item">
+                    <button class="legend-ball priority-1" onclick="addTask(1)">1</button>
+                </div>
+                <div class="legend-item">
+                    <button class="legend-ball priority-2" onclick="addTask(2)">2</button>
+                </div>
+                <div class="legend-item">
+                    <button class="legend-ball priority-3" onclick="addTask(3)">3</button>
+                </div>
+                <div class="legend-item">
+                    <button class="legend-ball priority-4" onclick="addTask(4)">4</button>
+                </div>
+                <div class="legend-item">
+                    <button class="legend-ball priority-5" onclick="addTask(5)">5</button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -117,65 +244,286 @@
             bottleBottom, bottleLeft, bottleRight
         ]);
 
-        // 모래 입자 생성 함수 수정 (사각형으로 변경)
+        // 엔진 설정 최적화
+        engine.world.gravity.scale = 0.0005; // 더 낮은 중력으로 천천히 떨어지게 함
+
+        // 성능 최적화를 위한 변수들
+        let lastDropTime = 0;
+        let frameCount = 0;
+        const DROP_INTERVAL = 100;
+        const PARTICLES_PER_DROP = 1;
+
+        // 모래 입자 생성 함수 수정
         function createSandParticle() {
-            const x = window.innerWidth / 2 + Common.random(-20, 20);
-            const y = 0;
-            return Bodies.rectangle(x, y, 4, 4, { // 사각형으로 변경
-                restitution: 0.3,
-                friction: 0.5,
-                density: 0.1,
+            const x = window.innerWidth / 2 + Common.random(-8, 8);
+            const y = 50;
+            const color = Common.choose(['#e6c998', '#d4a460', '#deb887']);
+            
+            return Bodies.circle(x, y, 5, {
+                restitution: 0.1,
+                friction: 0.95,
+                density: 0.001,
+                frictionStatic: 0.9,
                 render: {
-                    fillStyle: '#f4a460'
+                    fillStyle: color,
+                    opacity: 0.9
+                },
+                collisionFilter: {
+                    group: 0,
+                    category: 0x0002,
+                    mask: 0x0001 | 0x0002
                 }
             });
         }
 
-        // 주기적으로 모래 입자 생성 (사각형으로 변경)
-        setInterval(function() {
-            for (let i = 0; i < 3; i++) {
-                const sand = createSandParticle();
-                World.add(engine.world, sand);
+        // 모래 생성 시작
+        function startSandDrop() {
+            function updateSand() {
+                const currentTime = performance.now();
+                
+                if (currentTime - lastDropTime > DROP_INTERVAL) {
+                    const sand = createSandParticle();
+                    World.add(engine.world, sand);
+                    lastDropTime = currentTime;
+                }
+                
+                // 100프레임마다 화면 밖 입자 제거
+                if (frameCount % 100 === 0) {
+                    const bodies = Composite.allBodies(engine.world);
+                    bodies.forEach(body => {
+                        if (body.position.y > window.innerHeight + 100) {
+                            World.remove(engine.world, body);
+                        }
+                    });
+                }
+                
+                frameCount++;
+                requestAnimationFrame(updateSand);
             }
-        }, 100);
-
-        // 모래가 떨어지는 애니메이션 추가
-        function dropSand() {
-            const sand = createSandParticle();
-            Matter.Body.setPosition(sand, { x: window.innerWidth / 2 + Common.random(-20, 20), y: 0 });
-            World.add(engine.world, sand);
+            
+            requestAnimationFrame(updateSand);
         }
 
-        // 주기적으로 모래 떨어뜨리기
-        setInterval(dropSand, 300); // 300ms마다 떨어뜨리기
+        // 모래 생성 시작 호출
+        startSandDrop();
 
-        // 전역 변수로 선택된 크기 추가
-        let selectedSize = 10;
+        // 병의 물리적 특성 수정
+        const wallProps = { 
+            isStatic: true, 
+            render: { 
+                fillStyle: '#666',
+                opacity: 0.8 
+            },
+            friction: 0.95,      // 높은 마찰력
+            restitution: 0.1,    // 낮은 탄성
+            collisionFilter: {
+                category: 0x0001
+            }
+        };
 
-        // 버튼 클릭 이벤트 처리
-        document.querySelectorAll('.size-btn').forEach(btn => {
-            btn.addEventListener('click', function() {
-                // 모든 버튼에서 active 클래스 제거
-                document.querySelectorAll('.size-btn').forEach(b => b.classList.remove('active'));
-                // 클릭된 버튼에 active 클래스 추가
-                this.classList.add('active');
-                // 선택된 크기 업데이트
-                selectedSize = parseInt(this.dataset.size);
+        // 렌더러 설정 최적화
+        render.options.wireframes = false;
+        render.options.showSleeping = false;
+        render.options.showVelocity = false;
+        render.options.showCollisions = false;
+        render.options.showAxes = false;
+        render.options.showPositions = false;
+        render.options.pixelRatio = 1; // 픽셀 비율 고정
+        render.options.background = '#f0f0f0';
+
+        // 엔진 성능 설정
+        engine.enableSleeping = true;
+        engine.constraintIterations = 2;
+        engine.positionIterations = 6;
+        engine.velocityIterations = 4;
+
+        // 태스크 관리를 위한 코드 추가
+        const taskInput = document.getElementById('task-text');
+
+        // 우선순위별 공의 위치를 추적하는 객체
+        let priorityPositions = {
+            1: 0,
+            2: 0,
+            3: 0,
+            4: 0,
+            5: 0
+        };
+
+        // 우선순위별 공의 크기 설정
+        const priorityRadius = {
+            1: 35,  // 1순위가 가장 큼
+            2: 30,
+            3: 25,
+            4: 20,
+            5: 15   // 5순위가 가장 작음
+        };
+
+        // 우선순위별 폰트 크기 계산 함수
+        function calculateFontSize(priority) {
+            return Math.max(12, priorityRadius[priority] * 0.6) + 'px';
+        }
+
+        // 할 일 박스의 위치와 크기 가져오기
+        const plannerControls = document.getElementById('planner-controls');
+        const plannerRect = plannerControls.getBoundingClientRect();
+        const startY = plannerRect.bottom + 50; // 할 일 박스 아래 50px 여백
+
+        // 우선순위별 색상 지정
+        function getColorByPriority(priority) {
+            const colors = {
+                1: '#ff4444', // 빨강 (highest)
+                2: '#ff8800', // 주황
+                3: '#ffcc00', // 노랑
+                4: '#00cc88', // 초록
+                5: '#0099ff'  // 파랑 (lowest)
+            };
+            return colors[priority];
+        }
+
+        // 전역 변수로 공과 레이블 매핑 저장
+        let ballLabelMap = new Map();
+        let labelBallMap = new Map();
+
+        // 클릭한 공을 병 안으로 떨어뜨리는 함수
+        function dropBall(ball) {
+            if (ball && ball.isStatic) {
+                // 공의 속성 저장
+                const properties = {
+                    radius: ball.circleRadius,
+                    color: ball.render.fillStyle,
+                    label: ball.label,
+                    priority: ball.priority
+                };
+
+                // 레이블 제거
+                const label = ballLabelMap.get(ball.id);
+                if (label) {
+                    label.remove();
+                    ballLabelMap.delete(ball.id);
+                    labelBallMap.delete(label.id);
+                }
+
+                // 기존 공 제거
+                World.remove(engine.world, ball);
+
+                // 병 위에서 새로운 공 생성
+                const bottleCenter = window.innerWidth/2;
+                const newBall = Bodies.circle(
+                    bottleCenter,  // x 위치: 병 중앙
+                    100,          // y 위치: 병 위
+                    properties.radius,
+                    {
+                        restitution: 0.6,  // 탄성
+                        friction: 0.1,     // 마찰
+                        frictionAir: 0.001, // 공기 저항
+                        render: {
+                            fillStyle: properties.color
+                        },
+                        label: properties.label,
+                        priority: properties.priority
+                    }
+                );
+
+                // 새로운 공 추가
+                World.add(engine.world, newBall);
+            }
+        }
+
+        // canvas 클릭 이벤트 리스너 설정
+        render.canvas.addEventListener('click', function(event) {
+            // 클릭 위치를 canvas 좌표로 변환
+            const rect = render.canvas.getBoundingClientRect();
+            const x = event.clientX - rect.left;
+            const y = event.clientY - rect.top;
+            
+            // 모든 공을 가져와서 클릭된 공 찾기
+            const bodies = Composite.allBodies(engine.world);
+            for (let body of bodies) {
+                if (body.isStatic && Matter.Vertices.contains(body.vertices, { x: x, y: y })) {
+                    dropBall(body);
+                    break;
+                }
+            }
+        });
+
+        // 태스크 추가 함수
+        function addTask(priority) {
+            const text = taskInput.value.trim();
+            
+            if(text) {
+                // 현재 우선순위의 공 개수를 기반으로 x 위치 계산
+                const xOffset = 100 + (priorityPositions[priority] * 80); // 80px 간격으로 배치
+                const xPos = window.innerWidth - xOffset;
+                const yPos = startY + (priority - 1) * 100;
+                
+                // 새로운 공 생성
+                const ball = Bodies.circle(
+                    xPos,  // 오른쪽에서부터 순차적으로 배치
+                    yPos,  // 할 일 박스 아래에 배치
+                    priorityRadius[priority],  // 우선순위에 따른 크기
+                    {
+                        isStatic: true,  // 고정된 상태로 설정
+                        render: {
+                            fillStyle: getColorByPriority(priority)
+                        },
+                        label: text,
+                        priority: priority
+                    }
+                );
+                
+                World.add(engine.world, ball);
+                
+                // 텍스트 레이블 생성
+                const label = document.createElement('div');
+                label.className = 'task-label';
+                label.id = 'label-' + ball.id;  // 고유 ID 추가
+                label.textContent = text;
+                label.style.left = xPos + 'px';
+                label.style.top = yPos + 'px';
+                label.style.fontSize = calculateFontSize(priority);
+                label.style.maxWidth = (priorityRadius[priority] * 2.5) + 'px';
+                label.title = text; // 호버 시 전체 텍스트 표시
+                label.style.cursor = 'pointer'; // 커서 스타일 변경
+                
+                // 레이블 클릭 이벤트 추가
+                label.addEventListener('click', function() {
+                    const associatedBall = labelBallMap.get(label.id);
+                    if (associatedBall) {
+                        dropBall(associatedBall);
+                    }
+                });
+                
+                document.body.appendChild(label);
+
+                // 양방향 매핑 저장
+                ballLabelMap.set(ball.id, label);
+                labelBallMap.set(label.id, ball);
+                
+                // 해당 우선순위의 위치 카운터 증가
+                priorityPositions[priority]++;
+                
+                // 입력 필드 초기화
+                taskInput.value = '';
+            }
+        }
+
+        // 입력 필드 이벤트 리스너
+        taskInput.addEventListener('input', function() {
+            const buttons = document.querySelectorAll('.legend-ball');
+            const hasText = this.value.trim().length > 0;
+            
+            buttons.forEach(button => {
+                if (hasText) {
+                    button.classList.remove('disabled');
+                } else {
+                    button.classList.add('disabled');
+                }
             });
         });
 
-        // 기존 클릭 이벤트 수정
-        document.addEventListener('click', function(event) {
-            // size-controls 영역 클릭시 공 생성하지 않음
-            if (event.target.closest('#size-controls')) return;
-
-            const ball = Bodies.circle(event.clientX, event.clientY, selectedSize, {
-                restitution: 0.8,
-                render: {
-                    fillStyle: '#' + Math.floor(Math.random()*16777215).toString(16)
-                }
-            });
-            World.add(engine.world, ball);
+        // 초기 상태에서 버튼 비활성화
+        document.querySelectorAll('.legend-ball').forEach(button => {
+            button.classList.add('disabled');
         });
 
         // 엔진과 렌더러 실행
@@ -197,91 +545,56 @@
             Matter.Body.setPosition(bottleRight, { x: window.innerWidth/2 + bottleWidth/2 - wallThickness/2, y: window.innerHeight - bottleHeight/2 });
         });
 
-        // 태스크 관리를 위한 코드 추가
-        const taskInput = document.getElementById('task-text');
-        const prioritySelect = document.getElementById('priority-select');
-        const addTaskBtn = document.getElementById('add-task');
-        const taskList = document.getElementById('task-list');
+        // 병 내부 감지 및 반발력 적용을 위한 함수
+        function checkAndBounceOutBalls() {
+            const bodies = Composite.allBodies(engine.world);
+            const bottleLeft = window.innerWidth/2 - bottleWidth/2 + wallThickness;
+            const bottleRight = window.innerWidth/2 + bottleWidth/2 - wallThickness;
+            const bottleTop = window.innerHeight - bottleHeight;
+            const bottleBottom = window.innerHeight - wallThickness;
 
-        let tasks = [];
+            bodies.forEach(body => {
+                // 클릭으로 생성된 공만 체크 (카테고리로 구분)
+                if (body.collisionFilter.category === 0x0004) {
+                    const x = body.position.x;
+                    const y = body.position.y;
 
-        // 태스크 추가
-        addTaskBtn.addEventListener('click', function() {
-            const text = taskInput.value.trim();
-            const priority = parseInt(prioritySelect.value);
-            
-            if(text) {
-                const task = {
-                    id: Date.now(),
-                    text: text,
-                    priority: priority,
-                    completed: false
-                };
-                
-                tasks.push(task);
-                renderTasks();
-                taskInput.value = '';
-            }
-        });
+                    // 공이 병 안에 있는지 확인
+                    if (x > bottleLeft && x < bottleRight && 
+                        y > bottleTop && y < bottleBottom) {
+                        
+                        // 병 중심으로부터의 방향 계산
+                        const centerX = window.innerWidth/2;
+                        const centerY = window.innerHeight - bottleHeight/2;
+                        const dx = x - centerX;
+                        const dy = y - centerY;
+                        
+                        // 반발력 계산 (중심에서 멀어지는 방향)
+                        const force = {
+                            x: dx * 0.05,
+                            y: dy * 0.05
+                        };
 
-        // 태스크 렌더링
-        function renderTasks() {
-            // 우선순위별로 정렬
-            tasks.sort((a, b) => a.priority - b.priority);
-            
-            taskList.innerHTML = '';
-            tasks.forEach(task => {
-                const taskElement = document.createElement('div');
-                taskElement.className = 'task-item';
-                taskElement.innerHTML = `
-                    <span class="priority-badge priority-${task.priority}">${task.priority}순위</span>
-                    <span class="task-text">${task.text}</span>
-                    <button class="complete-btn" data-id="${task.id}">완료</button>
-                `;
-                taskList.appendChild(taskElement);
-            });
-
-            // 완료 버튼에 이벤트 리스너 추가
-            document.querySelectorAll('.complete-btn').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    const taskId = parseInt(this.dataset.id);
-                    const task = tasks.find(t => t.id === taskId);
-                    
-                    if(task) {
-                        // 해당 크기의 공 생성
-                        const ballSize = (6 - task.priority) * 10; // 1순위는 50, 5순위는 10
-                        const ball = Bodies.circle(
-                            window.innerWidth/2,
-                            50,
-                            ballSize,
-                            {
-                                restitution: 0.8,
-                                render: {
-                                    fillStyle: getColorByPriority(task.priority)
-                                }
-                            }
-                        );
-                        World.add(engine.world, ball);
-
-                        // 태스크 목록에서 제거
-                        tasks = tasks.filter(t => t.id !== taskId);
-                        renderTasks();
+                        // 공에 반발력 적용
+                        Matter.Body.setVelocity(body, {
+                            x: force.x,
+                            y: force.y
+                        });
+                        
+                        // 추가 위쪽 방향 힘 적용
+                        Matter.Body.applyForce(body, body.position, {
+                            x: 0,
+                            y: -0.1
+                        });
                     }
-                });
+                }
             });
         }
 
-        // 우선순위별 색상 지정
-        function getColorByPriority(priority) {
-            const colors = {
-                1: '#ff4444', // 빨강 (highest)
-                2: '#ff8800', // 주황
-                3: '#ffcc00', // 노랑
-                4: '#00cc88', // 초록
-                5: '#0099ff'  // 파랑 (lowest)
-            };
-            return colors[priority];
-        }
+        // 엔진 업데이트 이벤트에 반발 체크 추가
+        Matter.Events.on(engine, 'beforeUpdate', function() {
+            checkAndBounceOutBalls();
+        });
     </script>
 </body>
 </html>
