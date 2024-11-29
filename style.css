@@ -1,118 +1,122 @@
-body {
+/* 픽셀 폰트 import */
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+* {
     margin: 0;
     padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    background-color: #f1f3f5;
     overflow: hidden;
-    background: #f0f0f0;
 }
 
-canvas {
+.pixel-container {
+    width: 1920px;
+    height: 1080px;
+    margin: 0 auto;
+    background-color: #f1f3f5;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.pixel-content {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 50px;
+}
+
+.pixel-title {
+    font-family: 'Press Start 2P', cursive;
+    color: #000;
+    font-size: 20px;
+    text-shadow: 4px 4px 0 #d4d4d4;
+}
+
+.pixel-button {
+    font-family: 'Press Start 2P', cursive;
+    padding: 20px 40px;
+    font-size: 24px;
+    background-color: #fff;
+    border: none;
+    cursor: pointer;
+    image-rendering: pixelated;
+    box-shadow: 4px 4px 0 #888;
+    transition: all 0.2s;
+}
+
+.pixel-button:hover {
+    transform: translate(2px, 2px);
+    box-shadow: 2px 2px 0 #888;
+}
+
+/* 반응형 디자인을 위한 미디어 쿼리 */
+@media (max-width: 1920px) {
+    .pixel-container {
+        width: 100vw;
+        height: 100vh;
+    }
+}
+
+.bottle-button {
+    display: inline-block;
+    position: relative;
+    width: 60px;
+    height: 100px;
+    cursor: pointer;
+    text-decoration: none;
+}
+
+.bottle {
+    position: relative;
     width: 100%;
-    height: 100vh;
+    height: 100%;
 }
 
-#size-controls {
-    position: fixed;
-    top: 20px;
+/* 병 목 부분 */
+.bottle-neck {
+    position: absolute;
+    top: 0;
     left: 50%;
     transform: translateX(-50%);
-    z-index: 1000;
-    background: rgba(255, 255, 255, 0.8);
-    padding: 10px;
-    border-radius: 10px;
-    display: flex;
-    gap: 10px;
+    width: 20px;
+    height: 20px;
+    background-color: transparent;
+    border: 2px solid #000;
+    border-radius: 4px;
 }
 
-.size-btn {
-    padding: 8px 15px;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    background: #666;
-    color: white;
-    transition: background 0.3s;
-}
-
-.size-btn.active {
-    background: #333;
-}
-
-#planner-controls {
-    position: fixed;
+/* 병 몸통 부분 */
+.bottle-body {
+    position: absolute;
     top: 20px;
-    left: 20px;
-    z-index: 1000;
-    background: rgba(255, 255, 255, 0.9);
-    padding: 20px;
-    border-radius: 10px;
-    min-width: 300px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-}
-
-#task-input {
-    display: flex;
-    gap: 10px;
-    margin-bottom: 20px;
-}
-
-#task-text {
-    flex: 1;
-    padding: 8px;
-    border: 1px solid #ddd;
+    left: 0;
+    width: 60px;
+    height: 75px;
+    margin-top: 5px;
+    background-color: transparent;
+    border: 2px solid #000;
     border-radius: 5px;
+    overflow: hidden;  /* 물이 병 밖으로 넘치지 않도록 */
 }
 
-#priority-select {
-    padding: 8px;
-    border: 1px solid #ddd;
-    border-radius: 5px;
-}
-
-#add-task {
-    padding: 8px 15px;
-    background: #4CAF50;
-    color: white;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-}
-
-.task-item {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 10px;
-    background: white;
-    border-radius: 5px;
-    margin-bottom: 5px;
-}
-
-.priority-badge {
-    padding: 3px 8px;
+/* 물 채우기 효과 */
+.water-fill {
+    position: absolute;
+    bottom: -50px;  /* 처음에는 병 밖에 위치 */
+    left: 2px;      /* 병 테두리 안쪽에 맞춤 */
+    width: calc(100% - 4px);  /* 병 테두리 안쪽에 맞춤 */
+    height: 50px;   /* 채워질 물의 높이 */
+    background-color: #1971c2;
+    transition: all 1.5s ease-in-out;
     border-radius: 3px;
-    color: white;
-    font-size: 0.8em;
 }
 
-.priority-1 { background: #ff4444; }
-.priority-2 { background: #ff8800; }
-.priority-3 { background: #ffcc00; }
-.priority-4 { background: #00cc88; }
-.priority-5 { background: #0099ff; }
-
-.task-text {
-    flex: 1;
-}
-
-.complete-btn {
-    padding: 5px 10px;
-    background: #666;
-    color: white;
-    border: none;
-    border-radius: 3px;
-    cursor: pointer;
-}
-
-.complete-btn:hover {
-    background: #333;
+/* 호버 시 물 채우기 */
+.bottle-button:hover .water-fill {
+    bottom: 2px;    /* 병 바닥에서 약간의 여백 */
 }
